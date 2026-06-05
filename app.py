@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 
 st.set_page_config(
     page_title="ETD CICO Generator",
@@ -23,24 +24,18 @@ rws_files = st.file_uploader(
     accept_multiple_files=True
 )
 
+if master_file:
+
+    df_master = pd.read_excel(master_file)
+
+    st.success(
+        f"Master berhasil dibaca ({len(df_master)} karyawan)"
+    )
+
+    st.subheader("Preview Master")
+
+    st.dataframe(df_master.head())
+
 if st.button("Generate"):
 
-    if not master_file:
-        st.error("Master belum dipilih")
-        st.stop()
-
-    if not realisasi_file:
-        st.error("Realisasi belum dipilih")
-        st.stop()
-
-    if len(rws_files) == 0:
-        st.error("RWS belum dipilih")
-        st.stop()
-
-    st.success("File berhasil diterima")
-
-    st.write("Master :", master_file.name)
-    st.write("Realisasi :", realisasi_file.name)
-
-    for file in rws_files:
-        st.write(file.name)
+    st.success("Generate ditekan")
