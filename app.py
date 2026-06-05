@@ -1,6 +1,11 @@
 import streamlit as st
 import pandas as pd
 
+from modules.rws_reader import (
+    preview_rws,
+    extract_rws
+)
+
 st.set_page_config(
     page_title="ETD CICO Generator",
     layout="wide"
@@ -56,7 +61,7 @@ rws_files = st.file_uploader(
 
 
 # ==================================
-# PREVIEW MASTER
+# MASTER PREVIEW
 # ==================================
 
 if master_file:
@@ -68,7 +73,9 @@ if master_file:
             header=None
         )
 
-        header_row = find_header_row(raw_df)
+        header_row = find_header_row(
+            raw_df
+        )
 
         if header_row is None:
 
@@ -117,52 +124,44 @@ if master_file:
 
 
 # ==================================
-# PREVIEW RWS
+# RWS PREVIEW
 # ==================================
 
 if len(rws_files) > 0:
-
-    st.subheader("Preview RWS")
 
     first_rws = rws_files[0]
 
     try:
 
-        df_rws = pd.read_excel(
-            first_rws,
-            header=None
-        )
-
-        st.success(
-            f"{first_rws.name} berhasil dibaca"
-        )
-
-        st.write(
-            f"Jumlah Baris : {len(df_rws)}"
-        )
-
-        st.write(
-            f"Jumlah Kolom : {len(df_rws.columns)}"
-        )
-
         st.subheader(
-            "15 Baris Pertama RWS"
+            "Preview RWS Mentah"
+        )
+
+        raw_rws = preview_rws(
+            first_rws
         )
 
         st.dataframe(
-            df_rws.head(15),
+            raw_rws.head(15),
             use_container_width=True
         )
 
         st.subheader(
-            "Nama File RWS"
+            "Hasil Extract RWS"
         )
 
-        for file in rws_files:
+        attendance_df = extract_rws(
+            first_rws
+        )
 
-            st.write(
-                f"📄 {file.name}"
-            )
+        st.success(
+            f"Berhasil membuat {len(attendance_df)} transaksi"
+        )
+
+        st.dataframe(
+            attendance_df.head(50),
+            use_container_width=True
+        )
 
     except Exception as e:
 
@@ -172,23 +171,28 @@ if len(rws_files) > 0:
 
 
 # ==================================
-# PREVIEW REALISASI
+# REALISASI PREVIEW
 # ==================================
 
 if realisasi_file:
 
     try:
 
-        xls = pd.ExcelFile(
+        realisasi_df = pd.read_excel(
             realisasi_file
         )
 
         st.subheader(
-            "Sheet Realisasi"
+            "Preview Realisasi"
         )
 
         st.write(
-            xls.sheet_names
+            f"Jumlah Data : {len(realisasi_df)}"
+        )
+
+        st.dataframe(
+            realisasi_df.head(20),
+            use_container_width=True
         )
 
     except Exception as e:
@@ -199,7 +203,7 @@ if realisasi_file:
 
 
 # ==================================
-# GENERATE
+# GENERATE BUTTON
 # ==================================
 
 if st.button("Generate"):
@@ -209,7 +213,6 @@ if st.button("Generate"):
         st.error(
             "Master belum dipilih"
         )
-
         st.stop()
 
     if not realisasi_file:
@@ -217,7 +220,6 @@ if st.button("Generate"):
         st.error(
             "Realisasi belum dipilih"
         )
-
         st.stop()
 
     if len(rws_files) == 0:
@@ -225,13 +227,12 @@ if st.button("Generate"):
         st.error(
             "RWS belum dipilih"
         )
-
         st.stop()
 
     st.success(
-        "Sprint 2 berhasil."
+        "Sprint 3 berhasil."
     )
 
     st.info(
-        "Tahap berikutnya: Analisa struktur RWS."
+        "Tahap berikutnya: Rule Engine."
     )
