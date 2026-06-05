@@ -201,6 +201,8 @@ if realisasi_file:
             f"Gagal membaca Realisasi : {e}"
         )
 
+st.write(realisasi_df.columns.tolist())
+
 
 # ==================================
 # GENERATE BUTTON
