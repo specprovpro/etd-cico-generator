@@ -1,9 +1,22 @@
 import streamlit as st
 import pandas as pd
 
+from modules.master_reader import (
+    read_master,
+    build_master_dict
+)
+
+from modules.realisasi_reader import (
+    read_realisasi,
+    build_realisasi_dict
+)
+
 from modules.rws_reader import (
-    preview_rws,
     extract_rws
+)
+
+from modules.rule_engine import (
+    build_violation_report
 )
 
 st.set_page_config(
@@ -11,33 +24,9 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("ETD CICO Report Generator")
-
-
-# ==================================
-# FUNGSI CARI HEADER MASTER
-# ==================================
-
-def find_header_row(df):
-
-    for idx, row in df.iterrows():
-
-        values = [
-            str(x).strip().lower()
-            for x in row.values
-            if pd.notna(x)
-        ]
-
-        row_text = " ".join(values)
-
-        if (
-            "nik" in row_text
-            and "nama" in row_text
-        ):
-            return idx
-
-    return None
-
+st.title(
+    "ETD CICO Report Generator"
+)
 
 # ==================================
 # UPLOAD FILE
@@ -59,182 +48,158 @@ rws_files = st.file_uploader(
     accept_multiple_files=True
 )
 
-
 # ==================================
-# MASTER PREVIEW
-# ==================================
-
-if master_file:
-
-    try:
-
-        raw_df = pd.read_excel(
-            master_file,
-            header=None
-        )
-
-        header_row = find_header_row(
-            raw_df
-        )
-
-        if header_row is None:
-
-            st.error(
-                "Header Master tidak ditemukan"
-            )
-
-        else:
-
-            df_master = pd.read_excel(
-                master_file,
-                header=header_row
-            )
-
-            df_master = df_master.dropna(
-                how="all"
-            )
-
-            df_master.columns = [
-                str(col).strip()
-                for col in df_master.columns
-            ]
-
-            st.success(
-                f"Master berhasil dibaca ({len(df_master)} karyawan)"
-            )
-
-            with st.expander(
-                "Preview Master"
-            ):
-
-                st.write(
-                    df_master.columns.tolist()
-                )
-
-                st.dataframe(
-                    df_master.head(20),
-                    use_container_width=True
-                )
-
-    except Exception as e:
-
-        st.error(
-            f"Gagal membaca Master : {e}"
-        )
-
-
-# ==================================
-# RWS PREVIEW
-# ==================================
-
-if len(rws_files) > 0:
-
-    first_rws = rws_files[0]
-
-    try:
-
-        st.subheader(
-            "Preview RWS Mentah"
-        )
-
-        raw_rws = preview_rws(
-            first_rws
-        )
-
-        st.dataframe(
-            raw_rws.head(15),
-            use_container_width=True
-        )
-
-        st.subheader(
-            "Hasil Extract RWS"
-        )
-
-        attendance_df = extract_rws(
-            first_rws
-        )
-
-        st.success(
-            f"Berhasil membuat {len(attendance_df)} transaksi"
-        )
-
-        st.dataframe(
-            attendance_df.head(50),
-            use_container_width=True
-        )
-
-    except Exception as e:
-
-        st.error(
-            f"Gagal membaca RWS : {e}"
-        )
-
-
-# ==================================
-# REALISASI PREVIEW
-# ==================================
-
-if realisasi_file:
-
-    try:
-
-        realisasi_df = pd.read_excel(
-            realisasi_file
-        )
-
-        st.subheader(
-            "Preview Realisasi"
-        )
-
-        st.write(
-            f"Jumlah Data : {len(realisasi_df)}"
-        )
-
-        st.dataframe(
-            realisasi_df.head(20),
-            use_container_width=True
-        )
-
-    except Exception as e:
-
-        st.error(
-            f"Gagal membaca Realisasi : {e}"
-        )
-
-st.write(realisasi_df.columns.tolist())
-
-
-# ==================================
-# GENERATE BUTTON
+# GENERATE
 # ==================================
 
 if st.button("Generate"):
 
-    if not master_file:
+    try:
+
+        # ==========================
+        # VALIDASI
+        # ==========================
+
+        if not master_file:
+
+            st.error(
+                "Master belum dipilih"
+            )
+            st.stop()
+
+        if not realisasi_file:
+
+            st.error(
+                "Realisasi belum dipilih"
+            )
+            st.stop()
+
+        if len(rws_files) == 0:
+
+            st.error(
+                "RWS belum dipilih"
+            )
+            st.stop()
+
+        # ==========================
+        # MASTER
+        # ==========================
+
+        master_df = read_master(
+            master_file
+        )
+
+        master_dict = (
+            build_master_dict(
+                master_df
+            )
+        )
+
+        # ==========================
+        # REALISASI
+        # ==========================
+
+        realisasi_df = (
+            read_realisasi(
+                realisasi_file
+            )
+        )
+
+        realisasi_dict = (
+            build_realisasi_dict(
+                realisasi_df
+            )
+        )
+
+        # ==========================
+        # RWS
+        # ==========================
+
+        all_attendance = []
+
+        for file in rws_files:
+
+            attendance_df = (
+                extract_rws(
+                    file
+                )
+            )
+
+            all_attendance.append(
+                attendance_df
+            )
+
+        attendance_df = pd.concat(
+            all_attendance,
+            ignore_index=True
+        )
+
+        st.success(
+            f"Total transaksi: {len(attendance_df)}"
+        )
+
+        # ==========================
+        # PELANGGARAN
+        # ==========================
+
+        violation_df = (
+            build_violation_report(
+                attendance_df,
+                master_dict,
+                realisasi_dict
+            )
+        )
+
+        st.subheader(
+            "Detail Pelanggaran"
+        )
+
+        st.write(
+            f"Total Pelanggaran: {len(violation_df)}"
+        )
+
+        st.dataframe(
+            violation_df,
+            use_container_width=True
+        )
+
+        # ==========================
+        # REKAP
+        # ==========================
+
+        if len(
+            violation_df
+        ) > 0:
+
+            summary_df = (
+                violation_df
+                .groupby(
+                    [
+                        "NIK",
+                        "Nama"
+                    ]
+                )
+                .size()
+                .reset_index(
+                    name="Total Pelanggaran"
+                )
+                .sort_values(
+                    "Total Pelanggaran",
+                    ascending=False
+                )
+            )
+
+            st.subheader(
+                "Ranking Pelanggaran"
+            )
+
+            st.dataframe(
+                summary_df,
+                use_container_width=True
+            )
+
+    except Exception as e:
 
         st.error(
-            "Master belum dipilih"
+            f"Error: {e}"
         )
-        st.stop()
-
-    if not realisasi_file:
-
-        st.error(
-            "Realisasi belum dipilih"
-        )
-        st.stop()
-
-    if len(rws_files) == 0:
-
-        st.error(
-            "RWS belum dipilih"
-        )
-        st.stop()
-
-    st.success(
-        "Sprint 3 berhasil."
-    )
-
-    st.info(
-        "Tahap berikutnya: Rule Engine."
-    )
