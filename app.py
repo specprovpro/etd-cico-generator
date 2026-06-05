@@ -26,14 +26,17 @@ rws_files = st.file_uploader(
 
 if master_file:
 
-    df_master = pd.read_excel(master_file)
+    df_master = pd.read_excel(
+        master_file,
+        header=3
+    )
 
     st.success(
         f"Master berhasil dibaca ({len(df_master)} karyawan)"
     )
 
     st.subheader("Preview Master")
-
+    st.write(df_master.columns.tolist())
     st.dataframe(df_master.head())
 
 if st.button("Generate"):
